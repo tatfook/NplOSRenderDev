@@ -1,0 +1,12 @@
+.vs
+*.db
+*.opendb
+*.sdf
+*.suo
+*.log
+Debug
+Release
+bin
+deps
+ParaWorld
+sln
