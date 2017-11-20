@@ -108,6 +108,73 @@ void NplOSRender::DoTask()
 	}
 }
 
+void NplOSRender::InitGL()
+{
+	glShadeModel(GL_SMOOTH);                    // shading mathod: GL_SMOOTH or GL_FLAT
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);      // 4-byte pixel alignment
+
+												// enable /disable features
+	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+	//glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+	//glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_CULL_FACE);
+
+	// track material ambient and diffuse from surface color, call it before glEnable(GL_COLOR_MATERIAL)
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glEnable(GL_COLOR_MATERIAL);
+
+	glClearColor(0, 0, 0, 0);                   // background color
+	glClearStencil(0);                          // clear stencil buffer
+	glClearDepth(1.0f);                         // 0 is near, 1 is far
+	glDepthFunc(GL_LEQUAL);
+
+	InitLights();
+	glViewport(0, 0, (GLsizei)w, (GLsizei)h);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	if (w <= h)
+		glOrtho(0.0, 16.0, 0.0, 16.0*(GLfloat)h / (GLfloat)w,
+			-10.0, 10.0);
+	else
+		glOrtho(0.0, 16.0*(GLfloat)w / (GLfloat)h, 0.0, 16.0,
+			-10.0, 10.0);
+	glMatrixMode(GL_MODELVIEW);
+}
+
+void NplOSRender::InitLights()
+{
+	// set up light colors (ambient, diffuse, specular)
+	GLfloat lightKa[] = { .2f, .2f, .2f, 1.0f };  // ambient light
+	GLfloat lightKd[] = { .7f, .7f, .7f, 1.0f };  // diffuse light
+	GLfloat lightKs[] = { 1, 1, 1, 1 };           // specular light
+	glLightfv(GL_LIGHT0, GL_AMBIENT, lightKa);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, lightKd);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, lightKs);
+
+	// position the light
+	float lightPos[4] = { 0, 0, 20, 1 }; // positional light
+	glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+
+	glEnable(GL_LIGHT0);                        // MUST enable each light source after configuration
+}
+
+void NplOSRender::SetCamera(float posX, float posY, float posZ, float targetX, float targetY, float targetZ)
+{
+	glViewport(0, 0, (GLsizei)w, (GLsizei)h);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	if (w <= h)
+		glOrtho(0.0, 16.0, 0.0, 16.0*(GLfloat)h / (GLfloat)w,
+			-10.0, 10.0);
+	else
+		glOrtho(0.0, 16.0*(GLfloat)w / (GLfloat)h, 0.0, 16.0,
+			-10.0, 10.0);
+	glMatrixMode(GL_MODELVIEW);
+}
+
 void NplOSRender::RenderImage(NPLInterface::NPLObjectProxy& renderList)
 {
 	std::vector<Vector3> vertexBuffer;
@@ -143,7 +210,7 @@ void NplOSRender::RenderImage(NPLInterface::NPLObjectProxy& renderList)
 		int i = 0;
 		for (NPLInterface::NPLTable::IndexIterator_Type iCur = colors.index_begin(), iEnd = colors.index_end(); iCur != iEnd; ++iCur)
 		{
-			indexBuffer.push_back(iCur->second);
+// 			indexBuffer.push_back(iCur->second);
 			i++;
 		}
 		shapes.push_back(i);
@@ -180,6 +247,41 @@ void NplOSRender::RenderImage(NPLInterface::NPLObjectProxy& renderList)
 		glDisableClientState(GL_NORMAL_ARRAY);
 	}
 
+	GLuint listId = glGenLists(1);
+
+	float shininess = 15.0f;
+	float diffuseColor[3] = { 0.929524f, 0.796542f, 0.178823f };
+	float specularColor[4] = { 1.00000f, 0.980392f, 0.549020f, 1.0f };
+
+	if (listId == 0)
+	{
+	}
+
+	glEnableClientState(GL_NORMAL_ARRAY);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glNormalPointer(GL_FLOAT, 0, &normalBuffer[0]);
+	glColorPointer(3, GL_FLOAT, 0, &colorBuffer[0]);
+	glVertexPointer(3, GL_FLOAT, 0, &vertexBuffer[0]);
+
+	// store drawing function in the display list =============================
+	glNewList(listId, GL_COMPILE);
+
+	// set specular and shiniess using glMaterial (gold-yellow)
+	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess); // range 0 ~ 128
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specularColor);
+
+	// set ambient and diffuse color using glColorMaterial (gold-yellow)
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3fv(diffuseColor);
+
+	// start to render polygons
+	glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_SHORT, &indexBuffer[0]);
+
+	glEndList();	//=========================================================
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
 }
 
 void NplOSRender::WritePng(const string& fileName)

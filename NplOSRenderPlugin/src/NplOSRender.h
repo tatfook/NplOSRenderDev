@@ -28,6 +28,9 @@ protected:
 
 private:
 	void DoTask();
+	void InitGL();
+	void InitLights();
+	void SetCamera(float posX, float posY, float posZ, float targetX, float targetY, float targetZ);
 	void RenderImage(NPLInterface::NPLObjectProxy& renderList);
 	void WritePng(const string& fileName);
 
