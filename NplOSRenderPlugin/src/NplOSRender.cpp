@@ -31,9 +31,8 @@ NplOSRender::NplOSRender()
 	, m_start(false)
 	, m_context(OSMesaCreateContextExt(GL_RGBA, 32, 0, 0, nullptr))
 {
-	if (nullptr == m_context)
-	{
-		// create osmesa context failed
+	if (!m_context) {
+		printf("OSMesaCreateContext failed!\n");
 	}
 }
 
@@ -105,21 +104,21 @@ void NplOSRender::DoTask()
 		}
 
 		GLubyte* buffer = new GLubyte[params->width * params->height * 4];
-		if (buffer != nullptr)\
-			OSMesaMakeCurrent(m_context, buffer, GL_FLOAT, params->width, params->height);
+		if (buffer != nullptr)
+			OSMesaMakeCurrent(m_context, buffer, GL_UNSIGNED_BYTE, params->width, params->height);
 		InitGL();
 		ResizeView(params->width, params->height);
 
 		GLuint listId = CreateDisplayList(params->renderList);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		glPushMatrix();
-		glTranslatef(0, -1.6f, 0);
+		glTranslatef(0, -0.5, 0);
 		glRotatef(10.0f, 1, 0, 0);
-		glRotatef(30.0f, 0, 1, 0);
+		glRotatef(130.0f, 0, 1, 0);
 		glCallList(listId);
 		glPopMatrix();
 		glFinish();
-		WritePng(params->modelName.append(""), buffer, params->width, params->height);
+		WritePng(params->modelName, buffer, params->width, params->height);
 
 		glDeleteLists(listId, 1);
 		delete[] buffer;
@@ -137,20 +136,17 @@ void NplOSRender::InitGL()
 
 												// enable /disable features
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-	//glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
-	//glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_LIGHTING);
-	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_CULL_FACE);
 
 	// track material ambient and diffuse from surface color, call it before glEnable(GL_COLOR_MATERIAL)
 	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 	glEnable(GL_COLOR_MATERIAL);
 
-	glClearColor(0, 0, 0, 0);                   // background color
-	glClearStencil(0);                          // clear stencil buffer
-	glClearDepth(1.0f);                         // 0 is near, 1 is far
+	glClearColor(240 / 255.0f, 240 / 255.0f, 240 / 255.0f, 1.0f);	//0xf0f0f0
+	glClearStencil(0);
+	glClearDepth(1.0f);
 	glDepthFunc(GL_LEQUAL);
 
 	InitLights();
@@ -158,16 +154,15 @@ void NplOSRender::InitGL()
 
 void NplOSRender::InitLights()
 {
-	// set up light colors (ambient, diffuse, specular)
-	GLfloat lightKa[] = { .2f, .2f, .2f, 1.0f };  // ambient light
-	GLfloat lightKd[] = { .7f, .7f, .7f, 1.0f };  // diffuse light
-	GLfloat lightKs[] = { 1, 1, 1, 1 };           // specular light
+	GLfloat lightKa[] = { 68 / 255.0f, 68 / 255.0f, 68 / 255.0f, 1.0f };	//0x444444
+	GLfloat lightKd[] = { 1.0f, 1.0f, 1.0f, 1.0f };	//0xffffff
+	GLfloat lightKs[] = { 1, 1, 1, 1 };
 	glLightfv(GL_LIGHT0, GL_AMBIENT, lightKa);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, lightKd);
 	glLightfv(GL_LIGHT0, GL_SPECULAR, lightKs);
 
 	// position the light
-	float lightPos[4] = { 0, 0, 20, 1 }; // positional light
+	float lightPos[4] = { 17, 30, 9, 1 }; // positional light
 	glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
 
 	glEnable(GL_LIGHT0);                        // MUST enable each light source after configuration
@@ -179,7 +174,7 @@ void NplOSRender::ResizeView(int w, int h)
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	if (w <= h)
-		glOrtho(-10.0, 10.0, -10.0*(GLfloat)h / (GLfloat)w, 10.0*(GLfloat)h / (GLfloat)w, -10.0, 10.0);
+		glOrtho(-1.0, 1.0, -1.0*(GLfloat)h / (GLfloat)w, 1.0*(GLfloat)h / (GLfloat)w, -10.0, 10.0);
 	else
 		glOrtho(-1.0*(GLfloat)w / (GLfloat)h, 1.0*(GLfloat)w / (GLfloat)h, -1.0, 1.0, -10.0, 10.0);
 	glMatrixMode(GL_MODELVIEW);
@@ -204,23 +199,24 @@ GLuint NplOSRender::CreateDisplayList(NPLInterface::NPLObjectProxy& renderList)
 		for (NPLInterface::NPLTable::IndexIterator_Type vCur = vertices.index_begin(), vEnd = vertices.index_end(); vCur != vEnd; ++vCur)
 		{
 			NPLInterface::NPLObjectProxy& vertex = vCur->second;
-			vertexBuffer.push_back(Vector3((float)(double)vertex[0], (float)(double)vertex[1], (float)(double)vertex[2]));
+			vertexBuffer.push_back(Vector3((float)(double)vertex[1], (float)(double)vertex[2], (float)(double)vertex[3]));
 		}
 		for (NPLInterface::NPLTable::IndexIterator_Type nCur = normals.index_begin(), nEnd = normals.index_end(); nCur != nEnd; ++nCur)
 		{
 			NPLInterface::NPLObjectProxy& normal = nCur->second;
-			normalBuffer.push_back(Vector3((float)(double)normal[0], (float)(double)normal[1], (float)(double)normal[2]));
+			normalBuffer.push_back(Vector3((float)(double)normal[1], (float)(double)normal[2], (float)(double)normal[3]));
 		}
 		for (NPLInterface::NPLTable::IndexIterator_Type cCur = colors.index_begin(), cEnd = colors.index_end(); cCur != cEnd; ++cCur)
 		{
 			NPLInterface::NPLObjectProxy& color = cCur->second;
-			colorBuffer.push_back(Vector3((float)(double)color[0], (float)(double)color[1], (float)(double)color[2]));
+			colorBuffer.push_back(Vector3((float)(double)color[1], (float)(double)color[2], (float)(double)color[3]));
 		}
 
 		int i = 0;
-		for (NPLInterface::NPLTable::IndexIterator_Type iCur = colors.index_begin(), iEnd = colors.index_end(); iCur != iEnd; ++iCur)
+		for (NPLInterface::NPLTable::IndexIterator_Type iCur = indices.index_begin(), iEnd = indices.index_end(); iCur != iEnd; ++iCur)
 		{
-			indexBuffer.push_back((unsigned int)(double)iCur->second);
+			unsigned int index = (unsigned int)(double)iCur->second - 1;
+			indexBuffer.push_back(index);
 			i++;
 		}
 		shapes.push_back(i);
@@ -229,6 +225,11 @@ GLuint NplOSRender::CreateDisplayList(NPLInterface::NPLObjectProxy& renderList)
 // 	CShapeAABB aabb(&vertexBuffer[0], vertexBuffer.size());
 // 	Vector3 center = aabb.GetCenter();
 // 	Vector3 extents = aabb.GetExtents();
+
+	//MeshPhongMaterial
+	float shininess = 200.0f;
+// 	float diffuseColor[3] = { 1.0f, 1.0f, 1.0f };
+// 	float specularColor[4] = { 1.00000f, 0.980392f, 0.549020f, 1.0f };
 
 	GLuint id = glGenLists(1);
 	if (!id) return id;
@@ -241,6 +242,10 @@ GLuint NplOSRender::CreateDisplayList(NPLInterface::NPLObjectProxy& renderList)
 	glVertexPointer(3, GL_FLOAT, 0, &vertexBuffer[0]);
 
 	glNewList(id, GL_COMPILE);
+	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess);
+// 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specularColor);
+// 	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+// 	glColor3fv(diffuseColor);
 	GLint start = 0;
 	for each (auto range in shapes)
 	{
