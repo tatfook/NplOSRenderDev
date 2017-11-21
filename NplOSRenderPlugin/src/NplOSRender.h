@@ -1,19 +1,13 @@
-#ifndef NPL_OS_RENDER_H
-#define NPL_OS_RENDER_H
-
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#pragma once
+#include "Core/NPLInterface.hpp"
+#include "GL/osmesa.h"
+#include "gl_wrap.h"
+#include "boost/noncopyable.hpp"
 #include <thread>
 #include <queue>
 #include <mutex>
 #include <atomic>
 #include <condition_variable>
-#include "boost/noncopyable.hpp"
-#include "Core/NPLInterface.hpp"
-#include "GL/osmesa.h"
-#include "gl_wrap.h"
 
 struct RenderParams;
 class NplOSRender : protected boost::noncopyable
@@ -30,9 +24,9 @@ private:
 	void DoTask();
 	void InitGL();
 	void InitLights();
-	void SetCamera(float posX, float posY, float posZ, float targetX, float targetY, float targetZ);
-	void RenderImage(NPLInterface::NPLObjectProxy& renderList);
-	void WritePng(const string& fileName);
+	void ResizeView(int w, int h);
+	GLuint CreateDisplayList(NPLInterface::NPLObjectProxy& renderList);
+	void WritePng(const string& fileName, const GLubyte *buffer, int width, int height);
 
 	std::thread* m_pThread;
 	std::queue<RenderParams*> m_queue;
@@ -41,11 +35,6 @@ private:
 	std::atomic<bool> m_start;
 
 	OSMesaContext m_context;
-	GLfloat* m_buffer;
 
 	static NplOSRender* m_pInstance;
-	static const int WIDTH = 400;
-	static const int HEIGHT = 400;
 };
-
-#endif // !NPL_OS_RENDER_H
