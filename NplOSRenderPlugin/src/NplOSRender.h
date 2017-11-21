@@ -1,5 +1,9 @@
 #pragma once
 #include "Core/NPLInterface.hpp"
+#include "ParaAngle.h"
+#include "ParaMathUtility.h"
+#include "ParaMath.h"
+#include "ParaVector3.h"
 #include "GL/osmesa.h"
 #include "gl_wrap.h"
 #include "boost/noncopyable.hpp"
@@ -25,7 +29,7 @@ private:
 	void InitGL();
 	void InitLights();
 	void ResizeView(int w, int h);
-	GLuint CreateDisplayList(NPLInterface::NPLObjectProxy& renderList);
+	GLuint CreateDisplayList(NPLInterface::NPLObjectProxy& renderList, ParaEngine::Vector3& center, ParaEngine::Vector3& extents);
 	void WritePng(const string& fileName, const GLubyte *buffer, int width, int height);
 
 	std::thread* m_pThread;

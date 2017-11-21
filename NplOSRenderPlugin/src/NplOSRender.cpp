@@ -1,10 +1,4 @@
 #include "NplOSRender.h"
-#include "Core/NPLInterface.hpp"
-#include "ParaAngle.h"
-#include "ParaMathUtility.h"
-#include "ParaMath.h"
-#include "ParaVector3.h"
-#include "ShapeAABB.h"
 #ifdef __linux__
 #include "libpng/png.h"
 #elif _WIN32
@@ -41,10 +35,12 @@ NplOSRender::~NplOSRender()
 	if (m_pThread != nullptr)
 	{
 		m_start = false;
+		lock_guard<mutex> lock(m_mutex);
+		m_queue.push(nullptr);
+		m_condition.notify_one();
 		m_pThread->join();
 		
 		RenderParams* params;
-		std::unique_lock<std::mutex> lk(m_mutex);
 		while (!m_queue.empty())
 		{
 			params = m_queue.front();
@@ -73,7 +69,12 @@ void NplOSRender::PostTask(const char* msg, int length)
 		m_pThread = new std::thread(&NplOSRender::DoTask, this);
 	}
 
-	RenderParams* params = new RenderParams(tabMsg["model"], tabMsg["render"]);
+	string fileName = tabMsg["model"];
+	size_t pos = fileName.find_last_of('.');
+	if (pos != string::npos)
+		fileName = fileName.substr(0, pos - 1);
+	fileName.append("_");
+	RenderParams* params = new RenderParams(fileName, tabMsg["render"]);
 	double w = tabMsg["width"];
 	double h = tabMsg["height"];
 	double f = tabMsg["frame"];
@@ -102,6 +103,8 @@ void NplOSRender::DoTask()
 			params = m_queue.front();
 			m_queue.pop();
 		}
+		
+		if (nullptr == params) continue;
 
 		GLubyte* buffer = new GLubyte[params->width * params->height * 4];
 		if (buffer != nullptr)
@@ -109,16 +112,25 @@ void NplOSRender::DoTask()
 		InitGL();
 		ResizeView(params->width, params->height);
 
-		GLuint listId = CreateDisplayList(params->renderList);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-		glPushMatrix();
-		glTranslatef(0, -0.5, 0);
-		glRotatef(10.0f, 1, 0, 0);
-		glRotatef(130.0f, 0, 1, 0);
-		glCallList(listId);
-		glPopMatrix();
-		glFinish();
-		WritePng(params->modelName, buffer, params->width, params->height);
+		Vector3 center, extents;
+		GLuint listId = CreateDisplayList(params->renderList, center, extents);
+		GLfloat scale = 1.0f / std::max(std::max(extents.x, extents.y), extents.z);
+
+		float degree = 360.0f / params->frame;
+		for (int i = 0; i < params->frame; i++)
+		{
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+			glPushMatrix();
+			glRotatef(-90.0f, 1, 0, 0);
+			glRotatef(degree * i, 0, 0, 1);
+			glTranslatef(-center.x, -center.y, -center.z);
+			glScalef(scale, scale, scale);
+			glCallList(listId);
+			glPopMatrix();
+			glFinish();
+			WritePng(params->modelName + std::to_string(i) + ".tga", buffer, params->width, params->height);
+		}
 
 		glDeleteLists(listId, 1);
 		delete[] buffer;
@@ -180,13 +192,16 @@ void NplOSRender::ResizeView(int w, int h)
 	glMatrixMode(GL_MODELVIEW);
 }
 
-GLuint NplOSRender::CreateDisplayList(NPLInterface::NPLObjectProxy& renderList)
+GLuint NplOSRender::CreateDisplayList(NPLInterface::NPLObjectProxy& renderList, Vector3& center, Vector3& extents)
 {
 	std::vector<Vector3> vertexBuffer;
 	std::vector<Vector3> normalBuffer;
 	std::vector<Vector3> colorBuffer;
 	std::vector<unsigned int> indexBuffer;
 	std::vector<int> shapes;
+
+	Vector3 vmax(0, 0, 0);
+	Vector3 vmin(0, 0, 0);
 
 	for (NPLInterface::NPLTable::IndexIterator_Type itCur = renderList.index_begin(), itEnd = renderList.index_end(); itCur != itEnd; ++itCur)
 	{
@@ -199,7 +214,12 @@ GLuint NplOSRender::CreateDisplayList(NPLInterface::NPLObjectProxy& renderList)
 		for (NPLInterface::NPLTable::IndexIterator_Type vCur = vertices.index_begin(), vEnd = vertices.index_end(); vCur != vEnd; ++vCur)
 		{
 			NPLInterface::NPLObjectProxy& vertex = vCur->second;
-			vertexBuffer.push_back(Vector3((float)(double)vertex[1], (float)(double)vertex[2], (float)(double)vertex[3]));
+			Vector3 point(Vector3((float)(double)vertex[1], (float)(double)vertex[2], (float)(double)vertex[3]));
+			vertexBuffer.push_back(point);
+
+			if (point.x > vmax.x) vmax.x = point.x;	if (point.x < vmin.x) vmin.x = point.x;
+			if (point.y > vmax.y) vmax.y = point.y;	if (point.y < vmin.x) vmin.y = point.y;
+			if (point.z > vmax.z) vmax.z = point.z;	if (point.z < vmin.x) vmin.z = point.z;
 		}
 		for (NPLInterface::NPLTable::IndexIterator_Type nCur = normals.index_begin(), nEnd = normals.index_end(); nCur != nEnd; ++nCur)
 		{
@@ -222,9 +242,8 @@ GLuint NplOSRender::CreateDisplayList(NPLInterface::NPLObjectProxy& renderList)
 		shapes.push_back(i);
 	}
 
-// 	CShapeAABB aabb(&vertexBuffer[0], vertexBuffer.size());
-// 	Vector3 center = aabb.GetCenter();
-// 	Vector3 extents = aabb.GetExtents();
+	center = (vmax + vmin)*0.5f;
+	extents = (vmax - vmin)/**0.5f*/; //Used to scale the model, don't need to div2 
 
 	//MeshPhongMaterial
 	float shininess = 200.0f;
