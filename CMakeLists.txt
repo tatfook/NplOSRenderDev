@@ -28,7 +28,7 @@ if (WIN32)
 	set (LIBPNG_DIR "${PROJECT_SOURCE_DIR}/libpng")
 	set	(OUTPUT_BIN_DIR "${NPLRuntime_Absolutely_DIR}/ParaWorld/bin32/osmesa")
 else()
-	set	(OUTPUT_BIN_DIR "${PROJECT_SOURCE_DIR}/NplCadOnline/workspace/osmesa")
+	set	(OUTPUT_BIN_DIR "${PROJECT_SOURCE_DIR}/../NplCadOnline/workspace/osmesa")
 endif()
 
 # NplOSRender

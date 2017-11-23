@@ -48,8 +48,8 @@ ENDIF()
 
 
 
+SET(CMAKE_DEBUG_POSTFIX "_d")
 IF (WIN32)
-	SET(CMAKE_DEBUG_POSTFIX "_d")
 	link_directories(${MESA3D_DIR}/lib)
 	link_directories(${LIBPNG_DIR}/lib)
 ENDIF()
@@ -70,7 +70,4 @@ ADD_CUSTOM_COMMAND(
 	POST_BUILD
 	COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_BIN_DIR}
 	COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:NplOSRender> ${OUTPUT_BIN_DIR}
-	IF (WIN32)
-		COMMAND ${CMAKE_COMMAND} -E copy "${MESA3D_DIR}/lib/osmesa.dll" ${OUTPUT_BIN_DIR}
-	ENDIF()
 )
