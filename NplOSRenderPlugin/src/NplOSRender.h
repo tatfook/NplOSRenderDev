@@ -28,7 +28,7 @@ private:
 	void DoTask();
 	void InitGL();
 	void InitLights();
-	void ResizeView(int w, int h);
+	void ResizeView(int w, int h, float scale);
 	GLuint CreateDisplayList(NPLInterface::NPLObjectProxy& renderList, ParaEngine::Vector3& center, ParaEngine::Vector3& extents);
 	void WritePng(const string& fileName, const GLubyte *buffer, int width, int height);
 

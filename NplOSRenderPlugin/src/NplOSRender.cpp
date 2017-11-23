@@ -110,11 +110,11 @@ void NplOSRender::DoTask()
 		if (buffer != nullptr)
 			OSMesaMakeCurrent(m_context, buffer, GL_UNSIGNED_BYTE, params->width, params->height);
 		InitGL();
-		ResizeView(params->width, params->height);
 
 		Vector3 center, extents;
 		GLuint listId = CreateDisplayList(params->renderList, center, extents);
-		GLfloat scale = 1.0f / std::max(std::max(extents.x, extents.y), extents.z);
+		GLfloat scale = std::max(std::max(extents.x, extents.y), extents.z);
+		ResizeView(params->width, params->height, scale);
 
 		float degree = 360.0f / params->frame;
 		for (int i = 0; i < params->frame; i++)
@@ -125,7 +125,6 @@ void NplOSRender::DoTask()
 			glRotatef(-90.0f, 1, 0, 0);
 			glRotatef(degree * i, 0, 0, 1);
 			glTranslatef(-center.x, -center.y, -center.z);
-			glScalef(scale, scale, scale);
 			glCallList(listId);
 			glPopMatrix();
 			glFinish();
@@ -180,15 +179,15 @@ void NplOSRender::InitLights()
 	glEnable(GL_LIGHT0);                        // MUST enable each light source after configuration
 }
 
-void NplOSRender::ResizeView(int w, int h)
+void NplOSRender::ResizeView(int w, int h, float scale)
 {
 	glViewport(0, 0, (GLsizei)w, (GLsizei)h);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	if (w <= h)
-		glOrtho(-1.0, 1.0, -1.0*(GLfloat)h / (GLfloat)w, 1.0*(GLfloat)h / (GLfloat)w, -10.0, 10.0);
+		glOrtho(-scale, scale, -scale*(GLfloat)h / (GLfloat)w, scale*(GLfloat)h / (GLfloat)w, -scale, scale);
 	else
-		glOrtho(-1.0*(GLfloat)w / (GLfloat)h, 1.0*(GLfloat)w / (GLfloat)h, -1.0, 1.0, -10.0, 10.0);
+		glOrtho(-scale*(GLfloat)w / (GLfloat)h, scale*(GLfloat)w / (GLfloat)h, -scale, scale, -scale, scale);
 	glMatrixMode(GL_MODELVIEW);
 }
 
@@ -203,6 +202,7 @@ GLuint NplOSRender::CreateDisplayList(NPLInterface::NPLObjectProxy& renderList, 
 	Vector3 vmax(0, 0, 0);
 	Vector3 vmin(0, 0, 0);
 
+	int lastVCount = 0;
 	for (NPLInterface::NPLTable::IndexIterator_Type itCur = renderList.index_begin(), itEnd = renderList.index_end(); itCur != itEnd; ++itCur)
 	{
 		NPLInterface::NPLObjectProxy& value = itCur->second;
@@ -210,11 +210,20 @@ GLuint NplOSRender::CreateDisplayList(NPLInterface::NPLObjectProxy& renderList, 
 		NPLInterface::NPLObjectProxy& normals = value["normals"];
 		NPLInterface::NPLObjectProxy& colors = value["colors"];
 		NPLInterface::NPLObjectProxy& indices = value["indices"];
+		NPLInterface::NPLObjectProxy& matrix = value["world_matrix"];
 
 		for (NPLInterface::NPLTable::IndexIterator_Type vCur = vertices.index_begin(), vEnd = vertices.index_end(); vCur != vEnd; ++vCur)
 		{
 			NPLInterface::NPLObjectProxy& vertex = vCur->second;
 			Vector3 point(Vector3((float)(double)vertex[1], (float)(double)vertex[2], (float)(double)vertex[3]));
+			Matrix4 m(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+			int i = 0;
+			for (NPLInterface::NPLTable::IndexIterator_Type mCur = matrix.index_begin(), mEnd = matrix.index_end(); mCur != mEnd; ++mCur)
+			{
+				m._m[i] = (float)(double)mCur->second;
+				i++;
+			}
+			point = point * m;
 			vertexBuffer.push_back(point);
 
 			if (point.x > vmax.x) vmax.x = point.x;	if (point.x < vmin.x) vmin.x = point.x;
@@ -236,10 +245,11 @@ GLuint NplOSRender::CreateDisplayList(NPLInterface::NPLObjectProxy& renderList, 
 		for (NPLInterface::NPLTable::IndexIterator_Type iCur = indices.index_begin(), iEnd = indices.index_end(); iCur != iEnd; ++iCur)
 		{
 			unsigned int index = (unsigned int)(double)iCur->second - 1;
-			indexBuffer.push_back(index);
+			indexBuffer.push_back(index + lastVCount);
 			i++;
 		}
 		shapes.push_back(i);
+		lastVCount = vertexBuffer.size();
 	}
 
 	center = (vmax + vmin)*0.5f;
@@ -314,6 +324,7 @@ void NplOSRender::WritePng(const string& fileName, const GLubyte *buffer, int wi
 				fputc(ptr[i], f);   /* write red */
 			}
 		}
+		fclose(f);
 	}
 }
 
