@@ -122,13 +122,13 @@ void NplOSRender::DoTask()
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 			glPushMatrix();
-			glRotatef(-90.0f, 1, 0, 0);
+			glRotatef(-60.0f, 1, 0, 0);
 			glRotatef(degree * i, 0, 0, 1);
 			glTranslatef(-center.x, -center.y, -center.z);
 			glCallList(listId);
 			glPopMatrix();
 			glFinish();
-			WritePng(params->modelName + std::to_string(i) + ".tga", buffer, params->width, params->height);
+			WritePng(params->modelName + std::to_string(i) + ".png", buffer, params->width, params->height);
 		}
 
 		glDeleteLists(listId, 1);
@@ -256,9 +256,9 @@ GLuint NplOSRender::CreateDisplayList(NPLInterface::NPLObjectProxy& renderList, 
 	extents = (vmax - vmin)/**0.5f*/; //Used to scale the model, don't need to div2 
 
 	//MeshPhongMaterial
-	float shininess = 200.0f;
-// 	float diffuseColor[3] = { 1.0f, 1.0f, 1.0f };
-// 	float specularColor[4] = { 1.00000f, 0.980392f, 0.549020f, 1.0f };
+	float shininess = 5.0f;
+	float diffuseColor[3] = { 1.0f, 1.0f, 1.0f };
+	float specularColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 	GLuint id = glGenLists(1);
 	if (!id) return id;
@@ -272,9 +272,9 @@ GLuint NplOSRender::CreateDisplayList(NPLInterface::NPLObjectProxy& renderList, 
 
 	glNewList(id, GL_COMPILE);
 	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess);
-// 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specularColor);
-// 	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-// 	glColor3fv(diffuseColor);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specularColor);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3fv(diffuseColor);
 	GLint start = 0;
 	for each (auto range in shapes)
 	{
@@ -292,39 +292,46 @@ GLuint NplOSRender::CreateDisplayList(NPLInterface::NPLObjectProxy& renderList, 
 
 void NplOSRender::WritePng(const string& fileName, const GLubyte *buffer, int width, int height)
 {
-	FILE *f = fopen(fileName.c_str(), "w");
-	if (f) {
-		int i, x, y;
-		const GLubyte *ptr = buffer;
-		fputc(0x00, f);	/* ID Length, 0 => No ID	*/
-		fputc(0x00, f);	/* Color Map Type, 0 => No color map included	*/
-		fputc(0x02, f);	/* Image Type, 2 => Uncompressed, True-color Image */
-		fputc(0x00, f);	/* Next five bytes are about the color map entries */
-		fputc(0x00, f);	/* 2 bytes Index, 2 bytes length, 1 byte size */
-		fputc(0x00, f);
-		fputc(0x00, f);
-		fputc(0x00, f);
-		fputc(0x00, f);	/* X-origin of Image	*/
-		fputc(0x00, f);
-		fputc(0x00, f);	/* Y-origin of Image	*/
-		fputc(0x00, f);
-		fputc(width & 0xff, f);      /* Image Width	*/
-		fputc((width >> 8) & 0xff, f);
-		fputc(height & 0xff, f);     /* Image Height	*/
-		fputc((height >> 8) & 0xff, f);
-		fputc(0x18, f);		/* Pixel Depth, 0x18 => 24 Bits	*/
-		fputc(0x20, f);		/* Image Descriptor	*/
-		fclose(f);
-		f = fopen(fileName.c_str(), "ab");  /* reopen in binary append mode */
-		for (y = height - 1; y >= 0; y--) {
-			for (x = 0; x < width; x++) {
-				i = (y*width + x) * 4;
-				fputc(ptr[i + 2], f); /* write blue */
-				fputc(ptr[i + 1], f); /* write green */
-				fputc(ptr[i], f);   /* write red */
-			}
+	FILE *fp = fopen(fileName.c_str(), "wb");
+	if (fp != nullptr)
+	{
+		png_structp write_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+		png_infop write_info_ptr = png_create_info_struct(write_ptr);
+		png_infop write_end_info_ptr = png_create_info_struct(write_ptr);
+		if (setjmp(png_jmpbuf(write_ptr)))
+		{
+			png_destroy_info_struct(write_ptr, &write_end_info_ptr);
+			png_destroy_write_struct(&write_ptr, &write_info_ptr);
+			fclose(fp);
+			return;
 		}
-		fclose(f);
+
+		png_init_io(write_ptr, fp);
+		png_set_IHDR(write_ptr, write_info_ptr, width, height, 8, PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+		png_colorp palette = (png_colorp)png_malloc(write_ptr, PNG_MAX_PALETTE_LENGTH * sizeof(png_color));
+		if (!palette) {
+			png_destroy_info_struct(write_ptr, &write_end_info_ptr);
+			png_destroy_write_struct(&write_ptr, &write_info_ptr);
+			fclose(fp);
+			return;
+		}
+		png_set_PLTE(write_ptr, write_info_ptr, palette, PNG_MAX_PALETTE_LENGTH);
+		png_write_info_before_PLTE(write_ptr, write_info_ptr);
+		png_write_info(write_ptr, write_info_ptr);
+		png_write_info(write_ptr, write_end_info_ptr);
+
+		png_bytepp rows = (png_bytepp)png_malloc(write_ptr, height * sizeof(png_bytep));
+		for (int i = 0; i < height; i++)
+			rows[i] = (png_bytep)(buffer + (height - i) * width * 4);
+
+		png_write_image(write_ptr, rows);
+		png_write_end(write_ptr, write_end_info_ptr);
+		png_free(write_ptr, rows);
+		png_free(write_ptr, palette);
+		png_destroy_info_struct(write_ptr, &write_end_info_ptr);
+		png_destroy_write_struct(&write_ptr, &write_info_ptr);
+
+		fclose(fp);
 	}
 }
 

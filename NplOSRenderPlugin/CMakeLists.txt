@@ -16,16 +16,16 @@ include_directories("${PROJECT_SOURCE_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/src")
 include_directories("${NPLRuntime_Absolutely_DIR}/Client/trunk/ParaEngineClient")
 include_directories("${NPLRuntime_Absolutely_DIR}/Client/trunk/ParaEngineClient/Core")
-include_directories("${NPLRuntime_Absolutely_DIR}/Client/trunk/ParaEngineClient/renderer")
 include_directories("${NPLRuntime_Absolutely_DIR}/Client/trunk/ParaEngineClient/math")
 include_directories("${NPLRuntime_Absolutely_DIR}/Client/trunk/ParaEngineClient/util")
-include_directories("${NPLRuntime_Absolutely_DIR}/Client/trunk/ParaEngineClient/IO")
-include_directories("${NPLRuntime_Absolutely_DIR}/Client/trunk/externals/png/include/win32")
-include_directories("${MESA3D_DIR}/include")
-include_directories("${MESA3D_DIR}/util")
 include_directories("${BoostRoot_DIR}")
+IF (WIN32)
+	include_directories("${MESA3D_DIR}/include")
+	include_directories("${MESA3D_DIR}/util")
+	include_directories("${LIBPNG_DIR}/include")
+ENDIF()
 
-IF(MSVC)
+IF(WIN32)
 	# statically link MSVC to reduce dependancies
 	foreach(flag_var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO)
 	 	if(${flag_var} MATCHES "/MD")
@@ -47,13 +47,15 @@ ENDIF()
 
 
 SET(CMAKE_DEBUG_POSTFIX "_d")
-
-link_directories(${MESA3D_DIR}/lib)
-link_directories(${NPLRuntime_Absolutely_DIR}/Client/trunk/externals/png/prebuilt/win32)
+IF (WIN32)
+	link_directories(${MESA3D_DIR}/lib)
+	link_directories(${LIBPNG_DIR}/lib)
+ENDIF()
 
 add_library(NplOSRender SHARED ${NplOSRenderPlugin_Source_files})
 target_link_libraries(NplOSRender osmesa)
 target_link_libraries(NplOSRender libpng)
+target_link_libraries(NplOSRender zlib)
 
 ADD_CUSTOM_COMMAND(
    TARGET NplOSRender

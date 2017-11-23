@@ -12,12 +12,17 @@ add_definitions(-DNOMINMAX)
 
 
 
-set (BoostRoot_DIR "$ENV{BOOST_ROOT}")
-set (MESA3D_DIR "${PROJECT_SOURCE_DIR}/osmesa")
 set	(NPLRuntime_DIR "../NPLRuntime" CACHE STRING "")
 set (NPLRuntime_Absolutely_DIR "${PROJECT_SOURCE_DIR}/${NPLRuntime_DIR}")
 
-set	(OUTPUT_BIN_DIR "${NPLRuntime_Absolutely_DIR}/ParaWorld/osmesa")
+if (WIN32)
+	set (BoostRoot_DIR "$ENV{BOOST_ROOT}")
+	set (MESA3D_DIR "${PROJECT_SOURCE_DIR}/osmesa")
+	set (LIBPNG_DIR "${PROJECT_SOURCE_DIR}/libpng")
+	set	(OUTPUT_BIN_DIR "${NPLRuntime_Absolutely_DIR}/ParaWorld/bin32/osmesa")
+else()
+	set	(OUTPUT_BIN_DIR "${NPLRuntime_Absolutely_DIR}/ParaWorld/bin64/osmesa")
+endif()
 
 # NplOSRender
 add_subdirectory ("${PROJECT_SOURCE_DIR}/NplOSRenderPlugin")
