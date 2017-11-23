@@ -1,10 +1,9 @@
-# Author: leio
-# Date: 2016.12.7
+# Author: chenjinxian
+# Date: 2017.11.24
 # Desc: 
 
 cmake_minimum_required(VERSION 2.6)
 project (NplOSRender)
-
 
 
 SET(NplOSRenderPlugin_Source_files "")
@@ -18,14 +17,17 @@ include_directories("${NPLRuntime_Absolutely_DIR}/Client/trunk/ParaEngineClient"
 include_directories("${NPLRuntime_Absolutely_DIR}/Client/trunk/ParaEngineClient/Core")
 include_directories("${NPLRuntime_Absolutely_DIR}/Client/trunk/ParaEngineClient/math")
 include_directories("${NPLRuntime_Absolutely_DIR}/Client/trunk/ParaEngineClient/util")
-include_directories("${BoostRoot_DIR}")
 IF (WIN32)
+	include_directories("${BoostRoot_DIR}")
 	include_directories("${MESA3D_DIR}/include")
-	include_directories("${MESA3D_DIR}/util")
 	include_directories("${LIBPNG_DIR}/include")
+ELSE()
+	find_package(PNG REQUIRED)
+	add_definitions(-DCMAKE_EXPECTED_PNG_VERSION="${PNG_VERSION_STRING}")
 ENDIF()
+include_directories("${MESA3D_DIR}/util")
 
-IF(WIN32)
+IF(MSVC)
 	# statically link MSVC to reduce dependancies
 	foreach(flag_var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO)
 	 	if(${flag_var} MATCHES "/MD")
@@ -46,21 +48,29 @@ ENDIF()
 
 
 
-SET(CMAKE_DEBUG_POSTFIX "_d")
 IF (WIN32)
+	SET(CMAKE_DEBUG_POSTFIX "_d")
 	link_directories(${MESA3D_DIR}/lib)
 	link_directories(${LIBPNG_DIR}/lib)
 ENDIF()
 
 add_library(NplOSRender SHARED ${NplOSRenderPlugin_Source_files})
-target_link_libraries(NplOSRender osmesa)
-target_link_libraries(NplOSRender libpng)
-target_link_libraries(NplOSRender zlib)
+
+IF (WIN32)
+	target_link_libraries(NplOSRender osmesa)
+	target_link_libraries(NplOSRender libpng)
+	target_link_libraries(NplOSRender zlib)
+ELSE ()
+	target_link_libraries(NplOSRender OSMesa)
+	target_link_libraries(NplOSRender ${PNG_LIBRARIES})
+ENDIF()
 
 ADD_CUSTOM_COMMAND(
-   TARGET NplOSRender
-   POST_BUILD
-   COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_BIN_DIR}
-   COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:NplOSRender> ${OUTPUT_BIN_DIR}
-   COMMAND ${CMAKE_COMMAND} -E copy "${MESA3D_DIR}/lib/osmesa.dll" ${OUTPUT_BIN_DIR}
+	TARGET NplOSRender
+	POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_BIN_DIR}
+	COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:NplOSRender> ${OUTPUT_BIN_DIR}
+	IF (WIN32)
+		COMMAND ${CMAKE_COMMAND} -E copy "${MESA3D_DIR}/lib/osmesa.dll" ${OUTPUT_BIN_DIR}
+	ENDIF()
 )

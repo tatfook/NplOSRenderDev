@@ -276,7 +276,7 @@ GLuint NplOSRender::CreateDisplayList(NPLInterface::NPLObjectProxy& renderList, 
 	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 	glColor3fv(diffuseColor);
 	GLint start = 0;
-	for each (auto range in shapes)
+	for (auto range : shapes)
 	{
 		glDrawElements(GL_TRIANGLES, range, GL_UNSIGNED_INT, &indexBuffer[start]);
 		start += range;
