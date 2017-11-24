@@ -123,7 +123,7 @@ void NplOSRender::DoTask()
 
 			glPushMatrix();
 			glRotatef(-60.0f, 1, 0, 0);
-			glRotatef(degree * i, 0, 0, 1);
+			glRotatef(-degree * i, 0, 0, 1);
 			glTranslatef(-center.x, -center.y, -center.z);
 			glCallList(listId);
 			glPopMatrix();
@@ -256,7 +256,7 @@ GLuint NplOSRender::CreateDisplayList(NPLInterface::NPLObjectProxy& renderList, 
 	extents = (vmax - vmin)/**0.5f*/; //Used to scale the model, don't need to div2 
 
 	//MeshPhongMaterial
-	float shininess = 5.0f;
+	float shininess = 100.0f;
 	float diffuseColor[3] = { 1.0f, 1.0f, 1.0f };
 	float specularColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
