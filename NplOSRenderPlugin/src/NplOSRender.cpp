@@ -72,7 +72,7 @@ void NplOSRender::PostTask(const char* msg, int length)
 	string fileName = tabMsg["model"];
 	size_t pos = fileName.find_last_of('.');
 	if (pos != string::npos)
-		fileName = fileName.substr(0, pos - 1);
+		fileName = fileName.substr(0, pos);
 	fileName.append("_");
 	RenderParams* params = new RenderParams(fileName, tabMsg["render"]);
 	double w = tabMsg["width"];
