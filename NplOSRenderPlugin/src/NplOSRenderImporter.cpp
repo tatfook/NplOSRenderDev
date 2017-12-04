@@ -139,7 +139,7 @@ CORE_EXPORT_DECL void LibActivate(int nType, void* pVoid)
 		const char* sMsg = pState->GetCurrentMsg();
 		int nMsgLength = pState->GetCurrentMsgLength();
 
-		OUTPUT_LOG(sMsg);
+//		OUTPUT_LOG(sMsg);
 		NplOSRender* browser = NplOSRender::CreateGetSingleton();
 		if (browser != nullptr)
 		{

@@ -23,7 +23,7 @@ NplOSRender* NplOSRender::m_pInstance = nullptr;
 NplOSRender::NplOSRender()
 	:m_pThread(nullptr)
 	, m_start(false)
-	, m_context(OSMesaCreateContextExt(GL_RGBA, 32, 0, 0, nullptr))
+	, m_context(OSMesaCreateContextExt(OSMESA_RGBA, 32, 8, 16, nullptr))
 {
 	if (!m_context) {
 		printf("OSMesaCreateContext failed!\n");
@@ -73,7 +73,7 @@ void NplOSRender::PostTask(const char* msg, int length)
 	size_t pos = fileName.find_last_of('.');
 	if (pos != string::npos)
 		fileName = fileName.substr(0, pos);
-	fileName.append("_");
+	fileName.append(".png");
 	RenderParams* params = new RenderParams(fileName, tabMsg["render"]);
 	double w = tabMsg["width"];
 	double h = tabMsg["height"];
@@ -116,6 +116,8 @@ void NplOSRender::DoTask()
 		GLfloat scale = std::max(std::max(extents.x, extents.y), extents.z);
 		ResizeView(params->width, params->height, scale);
 
+		int fourWidth = params->width * 4;
+		GLubyte* bigBuffer = new GLubyte[fourWidth * params->height * params->frame];
 		float degree = 360.0f / params->frame;
 		for (int i = 0; i < params->frame; i++)
 		{
@@ -128,13 +130,18 @@ void NplOSRender::DoTask()
 			glCallList(listId);
 			glPopMatrix();
 			glFinish();
-			WritePng(params->modelName + std::to_string(i) + ".png", buffer, params->width, params->height);
+			for (int j = 0; j < params->height; j++)
+			{
+				memcpy(bigBuffer + j * fourWidth * params->frame + fourWidth * i, buffer + j * fourWidth, fourWidth * sizeof(GLubyte));
+			}
 		}
+		WritePng(params->modelName, bigBuffer, params->width * params->frame, params->height);
 
 		glDeleteLists(listId, 1);
 		delete[] buffer;
 		buffer = nullptr;
-
+		delete[] bigBuffer;
+		bigBuffer = nullptr;
 		delete params;
 		params = nullptr;
 	}
@@ -151,11 +158,16 @@ void NplOSRender::InitGL()
 	glEnable(GL_LIGHTING);
 	glEnable(GL_CULL_FACE);
 
+	glEnable(GL_LINE_SMOOTH);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+
 	// track material ambient and diffuse from surface color, call it before glEnable(GL_COLOR_MATERIAL)
 	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 	glEnable(GL_COLOR_MATERIAL);
 
-	glClearColor(240 / 255.0f, 240 / 255.0f, 240 / 255.0f, 1.0f);	//0xf0f0f0
+	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClearStencil(0);
 	glClearDepth(1.0f);
 	glDepthFunc(GL_LEQUAL);
@@ -322,7 +334,7 @@ void NplOSRender::WritePng(const string& fileName, const GLubyte *buffer, int wi
 
 		png_bytepp rows = (png_bytepp)png_malloc(write_ptr, height * sizeof(png_bytep));
 		for (int i = 0; i < height; i++)
-			rows[i] = (png_bytep)(buffer + (height - i) * width * 4);
+			rows[i] = (png_bytep)(buffer + (height - i - 1) * width * 4);
 
 		png_write_image(write_ptr, rows);
 		png_write_end(write_ptr, write_end_info_ptr);
