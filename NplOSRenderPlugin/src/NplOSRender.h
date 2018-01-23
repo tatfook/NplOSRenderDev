@@ -17,7 +17,7 @@ struct RenderParams;
 class NplOSRender : protected boost::noncopyable
 {
 public:
-	void PostTask(const char* msg, int length);
+	void PostTask(const char* msg, int length, std::function<void(const string&, const string&)> cb);
 	static NplOSRender* CreateGetSingleton();
 
 protected:

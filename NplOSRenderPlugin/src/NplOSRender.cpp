@@ -10,13 +10,15 @@ using namespace ParaEngine;
 struct RenderParams
 {
 	std::string modelName;
+	std::string callName;
 	int width = 128;
 	int height = 128;
 	int frame = 8;
+	std::function<void(const string&, const string&)> callBack;
 	NPLInterface::NPLObjectProxy renderList;
 
-	RenderParams(const std::string& name, const NPLInterface::NPLObjectProxy& r)
-		:modelName(name), renderList(r) {}
+	RenderParams(const std::string& name, const NPLInterface::NPLObjectProxy& r, std::function<void(const string&, const string&)>& cb)
+		:modelName(name), renderList(r), callBack(cb) {}
 };
 
 NplOSRender* NplOSRender::m_pInstance = nullptr;
@@ -60,7 +62,7 @@ NplOSRender::~NplOSRender()
 	}
 }
 
-void NplOSRender::PostTask(const char* msg, int length)
+void NplOSRender::PostTask(const char* msg, int length, std::function<void(const string&, const string&)> cb)
 {
 	NPLInterface::NPLObjectProxy tabMsg = NPLInterface::NPLHelper::MsgStringToNPLTable(msg, length);
 	if (nullptr == m_pThread)
@@ -74,7 +76,8 @@ void NplOSRender::PostTask(const char* msg, int length)
 	if (pos != string::npos)
 		fileName = fileName.substr(0, pos);
 	fileName.append(".png");
-	RenderParams* params = new RenderParams(fileName, tabMsg["render"]);
+	RenderParams* params = new RenderParams(fileName, tabMsg["render"], cb);
+	params->callName = tabMsg["callback"];
 	double w = tabMsg["width"];
 	double h = tabMsg["height"];
 	double f = tabMsg["frame"];
@@ -142,6 +145,8 @@ void NplOSRender::DoTask()
 		buffer = nullptr;
 		delete[] bigBuffer;
 		bigBuffer = nullptr;
+
+		params->callBack(params->modelName, params->callName);
 		delete params;
 		params = nullptr;
 	}

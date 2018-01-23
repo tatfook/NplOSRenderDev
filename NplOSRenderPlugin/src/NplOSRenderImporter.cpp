@@ -143,7 +143,14 @@ CORE_EXPORT_DECL void LibActivate(int nType, void* pVoid)
 		NplOSRender* browser = NplOSRender::CreateGetSingleton();
 		if (browser != nullptr)
 		{
-			browser->PostTask(sMsg, nMsgLength);
+			browser->PostTask(sMsg, nMsgLength, [=](const string& fileName, const string& callback) {
+				if (!callback.empty())
+				{
+					std::string codes = "msg = {finished_";
+					codes.append(fileName).append(" = true }");
+					pState->activate(callback.c_str(), codes.c_str(), codes.length());
+				}
+			});
 		}
 	}
 }
