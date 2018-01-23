@@ -139,15 +139,15 @@ CORE_EXPORT_DECL void LibActivate(int nType, void* pVoid)
 		const char* sMsg = pState->GetCurrentMsg();
 		int nMsgLength = pState->GetCurrentMsgLength();
 
-//		OUTPUT_LOG(sMsg);
+		//OUTPUT_LOG(sMsg);
 		NplOSRender* browser = NplOSRender::CreateGetSingleton();
 		if (browser != nullptr)
 		{
 			browser->PostTask(sMsg, nMsgLength, [=](const string& fileName, const string& callback) {
 				if (!callback.empty())
 				{
-					std::string codes = "msg = {finished_";
-					codes.append(fileName).append(" = true }");
+					std::string codes = "msg = {finished_png = true,  filename = \"";
+					codes.append(fileName).append("\"}");
 					pState->activate(callback.c_str(), codes.c_str(), codes.length());
 				}
 			});
